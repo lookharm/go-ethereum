@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -144,6 +145,15 @@ func TestNewContractAddress(t *testing.T) {
 	checkAddr(t, common.HexToAddress("333c3310824b7c685133f2bedb2ca4b8b4df633d"), caddr0)
 	checkAddr(t, common.HexToAddress("8bda78331c916a08481428e4b07c96d3e916d165"), caddr1)
 	checkAddr(t, common.HexToAddress("c9ddedf451bc62ce88bf9292afb13df35b670699"), caddr2)
+}
+
+func Test_CraeteAddress(t *testing.T) {
+	addr1 := CreateAddress(common.HexToAddress("94a1eeea2a7bbc995f884540963e2e59d068cbfb"), 1)
+	fmt.Println(addr1.Hex())
+	addr2 := CreateAddress(common.HexToAddress("94a1eeea2a7bbc995f884540963e2e59d068cbfb"), 2)
+	fmt.Println(addr2.Hex())
+	addr3 := CreateAddress(common.HexToAddress("94a1eeea2a7bbc995f884540963e2e59d068cbfb"), 3)
+	fmt.Println(addr3.Hex())
 }
 
 func TestLoadECDSA(t *testing.T) {

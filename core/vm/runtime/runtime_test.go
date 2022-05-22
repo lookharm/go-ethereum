@@ -106,6 +106,44 @@ func TestExecute(t *testing.T) {
 	}
 }
 
+func TestExecute_XXX(t *testing.T) {
+	ret, _, err := Execute([]byte{
+		byte(vm.PUSH1), 42,
+		byte(vm.PUSH1), 0,
+		byte(vm.MSTORE),
+		byte(vm.PUSH1), 32,
+		byte(vm.PUSH1), 0,
+		byte(vm.RETURN),
+	}, nil, nil)
+	if err != nil {
+		t.Fatal("didn't expect error", err)
+	}
+
+	num := new(big.Int).SetBytes(ret)
+	if num.Cmp(big.NewInt(42)) != 0 {
+		t.Error("Expected 42, got", num)
+	}
+}
+
+func TestExecute_XXX2(t *testing.T) {
+	ret, _, err := Execute([]byte{
+		byte(vm.PUSH1), 42,
+		byte(vm.PUSH1), 0,
+		byte(vm.MSTORE),
+		byte(vm.PUSH1), 32,
+		byte(vm.PUSH1), 0,
+		byte(vm.RETURN),
+	}, nil, nil)
+	if err != nil {
+		t.Fatal("didn't expect error", err)
+	}
+
+	num := new(big.Int).SetBytes(ret)
+	if num.Cmp(big.NewInt(42)) != 0 {
+		t.Error("Expected 42, got", num)
+	}
+}
+
 func TestCall(t *testing.T) {
 	state, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 	address := common.HexToAddress("0x0a")
