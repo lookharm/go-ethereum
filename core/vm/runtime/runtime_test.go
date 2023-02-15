@@ -18,6 +18,7 @@ package runtime
 
 import (
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"strings"
@@ -33,6 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/eth/tracers/logger"
 	"github.com/ethereum/go-ethereum/params"
@@ -978,4 +980,13 @@ func BenchmarkTracerStepVsCallFrame(b *testing.B) {
 
 	benchmarkNonModifyingCode(10000000, code, "tracer-step-10M", stepTracer, b)
 	benchmarkNonModifyingCode(10000000, code, "tracer-call-frame-10M", callFrameTracer, b)
+}
+
+func Test_GenBlockHash(t *testing.T) {
+	hash := common.BytesToHash(crypto.Keccak256([]byte(new(big.Int).SetUint64(1).String())))
+	log.Println(hash)
+	hash = common.BytesToHash(crypto.Keccak256([]byte(new(big.Int).SetUint64(2).String())))
+	log.Println(hash)
+	hash = common.BytesToHash(crypto.Keccak256([]byte(new(big.Int).SetUint64(3).String())))
+	log.Println(hash)
 }

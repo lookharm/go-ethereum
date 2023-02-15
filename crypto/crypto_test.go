@@ -17,18 +17,25 @@
 package crypto
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"log"
+	"math"
 	"math/big"
 	"os"
 	"reflect"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/holiman/uint256"
 )
 
 var testAddrHex = "970e8128ab834e8eac17ab8e3812f010678cf791"
@@ -154,6 +161,159 @@ func Test_CraeteAddress(t *testing.T) {
 	fmt.Println(addr2.Hex())
 	addr3 := CreateAddress(common.HexToAddress("94a1eeea2a7bbc995f884540963e2e59d068cbfb"), 3)
 	fmt.Println(addr3.Hex())
+}
+
+func Test_BruteAddr(t *testing.T) {
+	var wg sync.WaitGroup
+
+	done := make(chan struct{})
+	count := 0
+	var mu sync.Mutex
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			for {
+				privateKey, err := GenerateKey()
+				if err != nil {
+					log.Println("err: ", err)
+				}
+				address := PubkeyToAddress(privateKey.PublicKey)
+				// fmt.Println(address)
+				contractAddress := CreateAddress(address, 0)
+				if strings.ToLower(contractAddress.Hex())[33:] == "badc0de" {
+					fmt.Println("found!!! ", "address: ", address, hexutil.Encode(FromECDSA(privateKey)), contractAddress, "nonce: ", 0)
+					done <- struct{}{}
+					break
+				}
+
+				mu.Lock()
+				count++
+				if count%100000 == 0 {
+					fmt.Println("count: ", count)
+				}
+				mu.Unlock()
+
+				select {
+				case <-done:
+					break
+				default:
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func TestPrint(t *testing.T) {
+	// privateKey, err := GenerateKey()
+	// if err != nil {
+	// 	log.Println("err: ", err)
+	// }
+	// address := PubkeyToAddress(privateKey.PublicKey)
+
+	// fmt.Println("found!!! ", "address: ", address, hexutil.Encode(FromECDSA(privateKey)))
+	// if "000000000000000000000000000000000badc0de"[33:] == "badc0de" {
+	// 	fmt.Println("ok")
+	// }
+
+	factoryAddress := common.HexToAddress("0xffca4dfd86a86c48c5d9c228bedbeb7f218a29c94b")
+	initHash := common.Hex2Bytes("4670da3f633e838c2746ca61c370ba3dbd257b86b28b78449f4185480e2aba51")
+
+	salt, _ := uint256.FromBig(big.NewInt(5975038))
+	contractAddress := CreateAddress2(factoryAddress, salt.Bytes32(), initHash)
+	if strings.ToLower(contractAddress.Hex())[35:] == "badc0de" {
+		fmt.Println(contractAddress)
+	}
+}
+
+func TestCreateAddress2(t *testing.T) {
+	startTime := time.Now()
+	var (
+		start        int64 = 0
+		limit        int64 = math.MaxInt64
+		interval     int64 = 1000000
+		maxGoroutint int   = 20
+	)
+
+	var wg sync.WaitGroup
+	factoryAddress := common.HexToAddress("ac801268f41189a9c1e352347C53A4966687Ef2c")
+	codeBytes := common.Hex2Bytes("608060405234801561001057600080fd5b50610243806100206000396000f3fe608060405234801561001057600080fd5b50600436106100365760003560e01c806306fdde031461003b578063d018db3e14610059575b600080fd5b61004361009d565b6040518082815260200191505060405180910390f35b61009b6004803603602081101561006f57600080fd5b81019080803573ffffffffffffffffffffffffffffffffffffffff1690602001909291905050506100c5565b005b60007f736d617278000000000000000000000000000000000000000000000000000000905090565b60008173ffffffffffffffffffffffffffffffffffffffff166040516024016040516020818303038152906040527f380c7a67000000000000000000000000000000000000000000000000000000007bffffffffffffffffffffffffffffffffffffffffffffffffffffffff19166020820180517bffffffffffffffffffffffffffffffffffffffffffffffffffffffff83818316178352505050506040518082805190602001908083835b602083106101945780518252602082019150602081019050602083039250610171565b6001836020036101000a0380198251168184511680821785525050505050509050019150506000604051808303816000865af19150503d80600081146101f6576040519150601f19603f3d011682016040523d82523d6000602084013e6101fb565b606091505b505090508061020957600080fd5b505056fea2646970667358221220867041414c1dae36666057fa3a823c3ff1fd2f922d5b1548ad0ed009ea9f783064736f6c634300060c0033")
+	initHash := Keccak256Hash(codeBytes).Bytes()
+
+	// salt, _ := uint256.FromBig(big.NewInt(140083175))
+	// contractAddress := CreateAddress2(factoryAddress, salt.Bytes32(), initHash)
+	// fmt.Println(contractAddress)
+
+	f := bufio.NewWriter(os.Stdout)
+	found := false
+	for i, j := start, 1; i <= limit && !found; i, j = i+interval, j+1 {
+		if j%maxGoroutint == 0 {
+			wg.Wait()
+			j = 1
+		}
+		wg.Add(1)
+		go func(start, limit int64) {
+			defer wg.Done()
+			var i int64 = start
+			for i <= limit && !found {
+				salt, _ := uint256.FromBig(big.NewInt(i))
+				contractAddress := CreateAddress2(factoryAddress, salt.Bytes32(), initHash)
+
+				if strings.ToLower(contractAddress.Hex())[35:] == "badc0de" {
+					fmt.Println("found!!! ", "contractAddress: ", contractAddress, "salt: ", salt, time.Since(startTime))
+					found = true
+				}
+				i++
+			}
+
+			fmt.Fprintf(f, "%v - %v: %v\n", start, limit, time.Since(startTime))
+			f.Flush()
+		}(i, i+interval)
+	}
+
+	wg.Wait()
+}
+
+func Test_BrutePublicKey(t *testing.T) {
+	startTime := time.Now()
+	var (
+		start        int64 = 0
+		limit        int64 = math.MaxInt64
+		interval     int64 = 1000000
+		maxGoroutint int   = 20
+	)
+
+	var wg sync.WaitGroup
+	address := common.HexToAddress("92b28647ae1f3264661f72fb2eb9625a89d88a31")
+
+	found := false
+	for i, j := start, 1; i <= limit && !found; i, j = i+interval, j+1 {
+		if j%maxGoroutint == 0 {
+			wg.Wait()
+			j = 1
+		}
+		wg.Add(1)
+		go func(start, limit int64) {
+			defer wg.Done()
+			var i int64 = start
+			for i <= limit && !found {
+				salt, _ := uint256.FromBig(big.NewInt(i))
+				_address := common.BytesToAddress(Keccak256(salt.Bytes()))
+
+				if address == _address {
+					println("found!!! ", "salt: ", salt, time.Since(startTime))
+					found = true
+				}
+				i++
+			}
+
+			println(start, "-", limit, time.Since(startTime))
+		}(i, i+interval)
+	}
+
+	wg.Wait()
 }
 
 func TestLoadECDSA(t *testing.T) {
